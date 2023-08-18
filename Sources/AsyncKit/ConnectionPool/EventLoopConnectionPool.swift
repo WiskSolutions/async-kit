@@ -44,7 +44,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     private var available: Deque<PrunableConnection<Source.Connection>>
 
     var openConnections: Int {
-        return self.available.filter { $0.isClosed }.count
+        self.available.filter { !$0.isClosed }.count
     }
 
     /// Current active connection count.
@@ -79,9 +79,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         pruneInterval: TimeAmount = .seconds(60),
         maxIdleTimeBeforePruning: TimeAmount = .seconds(120),
         logger: Logger = .init(label: "codes.vapor.pool"),
-        on eventLoop: EventLoop,
-        pruneInterval: TimeInterval = 60,
-        maxIdleTimeBeforePrunning: TimeInterval = 120
+        on eventLoop: EventLoop
     ) {
         self.source = source
         self.maxConnections = maxConnections

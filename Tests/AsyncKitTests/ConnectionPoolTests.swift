@@ -56,7 +56,7 @@ final class ConnectionPoolTests: XCTestCase {
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 3)
     }
 
-    func testConnectionPrunning() async throws {
+    func testConnectionPruning() async throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
             source: foo,
