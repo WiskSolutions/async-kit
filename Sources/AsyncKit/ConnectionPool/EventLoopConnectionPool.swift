@@ -314,12 +314,14 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         pruneInterval: TimeAmount,
         maxIdleTimeBeforePruning: TimeAmount
     ) {
-        let maxIdleTimeBeforePruning = Double(maxIdleTimeBeforePruning.nanoseconds / 1_000_000_000)
+        let maxIdleTimeBeforePruning = Double(maxIdleTimeBeforePruning.nanoseconds) / 1_000_000_000
         self.eventLoop.scheduleRepeatedTask(
-            initialDelay: pruneInterval,
+            initialDelay: .zero,
             delay: pruneInterval
-        ) { [weak self] _ in
-            guard let `self` = self else { return }
+        ) { [weak self] task in
+            guard let `self` = self else {
+                return task.cancel()
+            }
             for conn in self.available where !conn.isClosed {
                 if Date().timeIntervalSince(conn.lastUsed) >= maxIdleTimeBeforePruning {
                     // the connection is too old, just releasing it
@@ -379,11 +381,11 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
 }
 
 public struct PrunableConnection<Connection: ConnectionPoolItem> {
-    var originalConnection: Connection
+    let originalConnection: Connection
     var lastUsed: Date
 
     public var isClosed: Bool {
-        return self.originalConnection.isClosed
+        self.originalConnection.isClosed
     }
 
     init(connection: Connection, lastUsed: Date) {

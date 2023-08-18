@@ -90,7 +90,7 @@ final class ConnectionPoolTests: XCTestCase {
         pool.releaseConnection(anotherConnection1)
         pool.releaseConnection(anotherConnection2)
 
-        try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
+        try await Task.sleep(nanoseconds: UInt64(0.4 * Double(NSEC_PER_SEC)))
         XCTAssertEqual(pool.activeConnections, 3)
         XCTAssertEqual(pool.openConnections, 0)
 
@@ -392,21 +392,19 @@ private final class FooDatabase: ConnectionPoolSource {
     }
 
     func makeConnection(logger: Logger, on eventLoop: EventLoop) -> EventLoopFuture<FooConnection> {
-        let conn = FooConnection(on: eventLoop, lastUsed: Date())
+        let conn = FooConnection(on: eventLoop)
         self.connectionsCreated.wrappingIncrement(by: 1, ordering: .relaxed)
         return conn.eventLoop.makeSucceededFuture(conn)
     }
 }
 
 private final class FooConnection: ConnectionPoolItem, AtomicReference {
-    var lastUsed: Date
     var isClosed: Bool
     let eventLoop: EventLoop
 
-    init(on eventLoop: EventLoop, lastUsed: Date) {
+    init(on eventLoop: EventLoop) {
         self.eventLoop = eventLoop
         self.isClosed = false
-        self.lastUsed = lastUsed
     }
 
     func close() -> EventLoopFuture<Void> {
