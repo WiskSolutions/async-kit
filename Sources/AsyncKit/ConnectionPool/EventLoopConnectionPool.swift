@@ -285,10 +285,19 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             return
         }
 
+
         // Push the connection onto the end of the available list so it's the first one to get used
         // on the next request.
         logger.trace("Releasing pool connection on \(self.eventLoop.description), \(self.available.count + (connection.isClosed ? 0 : 1)) connections available.")
-        self.available.append(.init(connection: connection, lastUsed: Date()))
+
+        if var existing = self.available.first(where: { $0 === connection }) {
+            existing.lastUsed = Date()
+            self.available.append(existing)
+        } else {
+            // This is a connection that we don't know yet, it was returned by a future and the client just wants to release it.
+            self.available.append(.init(connection: connection, lastUsed: Date()))
+        }
+
 
         // For as long as there are connections available, try to dequeue waiters. Even if the available
         // connection(s) are closed, the request logic will try to open new ones.
@@ -384,5 +393,9 @@ public struct PrunableConnection<Connection: ConnectionPoolItem> {
 
     func close() -> EventLoopFuture<Void> {
         self.originalConnection.close()
+    }
+
+    static func === (lhs: Self, rhs: Connection) -> Bool {
+        lhs.originalConnection === rhs
     }
 }

@@ -79,8 +79,8 @@ final class ConnectionPoolTests: XCTestCase {
         XCTAssert(connA === connA1)
         pool.releaseConnection(connA1)
 
-        //keeping connection alive by using it and closing it
-        for _ in 1...3 {
+        // Keeping connection alive by using it and closing it
+        for _ in 0..<3 {
             try await Task.sleep(nanoseconds: UInt64(0.1 * Double(NSEC_PER_SEC)))
             let connA2 = try await pool.requestConnection().get()
             XCTAssert(connA === connA2)
