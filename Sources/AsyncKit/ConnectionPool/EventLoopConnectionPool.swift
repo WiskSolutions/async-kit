@@ -58,8 +58,8 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
 
     /// For lifecycle logs.
     public let logger: Logger
-
-    /// Creates a new ``EventLoopConnectionPool``.
+    
+    /// Creates a new `EventLoopConnectionPool`.
     ///
     ///     let pool = EventLoopConnectionPool(...)
     ///     pool.withConnection(...) { conn in
@@ -79,7 +79,9 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         pruneInterval: TimeAmount = .seconds(60),
         maxIdleTimeBeforePruning: TimeAmount = .seconds(120),
         logger: Logger = .init(label: "codes.vapor.pool"),
-        on eventLoop: EventLoop
+        on eventLoop: EventLoop,
+        pruneInterval: TimeInterval = 60,
+        maxIdleTimeBeforePrunning: TimeInterval = 120
     ) {
         self.source = source
         self.maxConnections = maxConnections
@@ -320,7 +322,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             }
         }
     }
-
+    
     /// Closes the connection pool.
     ///
     /// All available connections will be closed immediately.
