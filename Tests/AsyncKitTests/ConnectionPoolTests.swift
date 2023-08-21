@@ -6,7 +6,7 @@ import Logging
 import NIOCore
 import NIOPosix
 import NIOEmbedded
-import Foundation
+import var Darwin.Mach.NSEC_PER_SEC
 
 final class ConnectionPoolTests: XCTestCase {
     func testPooling() throws {
