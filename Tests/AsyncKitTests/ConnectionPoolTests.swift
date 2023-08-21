@@ -6,9 +6,11 @@ import Logging
 import NIOCore
 import NIOPosix
 import NIOEmbedded
-import var Darwin.Mach.NSEC_PER_SEC
 
 final class ConnectionPoolTests: XCTestCase {
+
+    let NSEC_PER_SEC: UInt64 = 1_000_000_000
+
     func testPooling() throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
