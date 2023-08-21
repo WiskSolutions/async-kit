@@ -325,7 +325,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             for conn in self.available where !conn.isClosed {
                 if Date().timeIntervalSince(conn.lastUsed) >= maxIdleTimeBeforePruning {
                     // the connection is too old, just releasing it
-                    logger.debug("Connection is too old, closing it")
+                    self.logger.debug("Connection is too old, closing it")
                     _ = conn.close()
                 }
             }
