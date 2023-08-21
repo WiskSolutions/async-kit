@@ -64,8 +64,8 @@ final class ConnectionPoolTests: XCTestCase {
         let pool = EventLoopConnectionPool(
             source: foo,
             maxConnections: 5,
-            pruneInterval: .milliseconds(100),
-            maxIdleTimeBeforePruning: .milliseconds(150),
+            pruneInterval: .milliseconds(200),
+            maxIdleTimeBeforePruning: .milliseconds(300),
             on: MultiThreadedEventLoopGroup(numberOfThreads: 1).next()
         )
 
@@ -84,7 +84,7 @@ final class ConnectionPoolTests: XCTestCase {
 
         // Keeping connection alive by using it and closing it
         for _ in 0..<3 {
-            try await Task.sleep(nanoseconds: UInt64(0.1 * Double(NSEC_PER_SEC)))
+            try await Task.sleep(nanoseconds: UInt64(0.2 * Double(NSEC_PER_SEC)))
             let connA2 = try await pool.requestConnection().get()
             XCTAssert(connA === connA2)
             pool.releaseConnection(connA2)
@@ -93,7 +93,7 @@ final class ConnectionPoolTests: XCTestCase {
         pool.releaseConnection(anotherConnection1)
         pool.releaseConnection(anotherConnection2)
 
-        try await Task.sleep(nanoseconds: UInt64(0.35 * Double(NSEC_PER_SEC)))
+        try await Task.sleep(nanoseconds: UInt64(0.7 * Double(NSEC_PER_SEC)))
         let (activeConnections, openConnections) = try await pool._tests_getConnectionInfo().get()
         XCTAssertEqual(activeConnections, 3)
         XCTAssertEqual(openConnections, 0)
