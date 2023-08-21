@@ -6,6 +6,7 @@ import Logging
 import NIOCore
 import NIOPosix
 import NIOEmbedded
+import Foundation
 
 final class ConnectionPoolTests: XCTestCase {
     func testPooling() throws {
