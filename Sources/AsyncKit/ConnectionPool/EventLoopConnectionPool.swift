@@ -43,12 +43,15 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     /// > Note: Any connection in this list may have become invalid since its last use.
     private var available: Deque<PrunableConnection<Source.Connection>>
 
-    var openConnections: Int {
-        self.available.filter { !$0.isClosed }.count
-    }
-
     /// Current active connection count.
-    internal var activeConnections: Int
+    private var activeConnections: Int
+
+    func _tests_getConnectionInfo() throws -> EventLoopFuture<(active: Int, open: Int)> {
+        self.eventLoop.submit {
+            let openConnections = self.available.filter { !$0.isClosed }.count
+            return (self.activeConnections, openConnections)
+        }
+    }
 
     /// Connection requests waiting to be fulfilled due to pool exhaustion.
     private var waiters: OrderedDictionary<Int, WaitlistItem>
