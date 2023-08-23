@@ -8,6 +8,8 @@ import NIOPosix
 import NIOEmbedded
 
 final class ConnectionPoolTests: XCTestCase {
+    let NSEC_PER_SEC = 1_000_000_000
+
     func testPooling() throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
@@ -68,21 +70,21 @@ final class ConnectionPoolTests: XCTestCase {
         
         defer { try! pool.close().wait() }
 
-        let connA = try pool.requestConnection().wait()
+        let connA = try await pool.requestConnection().get()
         
-        let anotherConnection1 = try pool.requestConnection().wait()
-        let anotherConnection2 = try pool.requestConnection().wait()
+        let anotherConnection1 = try await pool.requestConnection().get()
+        let anotherConnection2 = try await pool.requestConnection().get()
 
         pool.releaseConnection(connA)
 
-        let connA1 = try pool.requestConnection().wait()
+        let connA1 = try await pool.requestConnection().get()
         XCTAssert(connA === connA1)
         pool.releaseConnection(connA1)
 
         //keeping connection alive by using it and closing it
         for _ in 1...3 {
             try await Task.sleep(nanoseconds: UInt64(0.1 * Double(NSEC_PER_SEC)))
-            let connA2 = try pool.requestConnection().wait()
+            let connA2 = try await pool.requestConnection().get()
             XCTAssert(connA === connA2)
             pool.releaseConnection(connA2)
         }
@@ -90,11 +92,11 @@ final class ConnectionPoolTests: XCTestCase {
         pool.releaseConnection(anotherConnection1)
         pool.releaseConnection(anotherConnection2)
 
-        try await Task.sleep(nanoseconds: UInt64(0.3 * Double(NSEC_PER_SEC)))
+        try await Task.sleep(nanoseconds: UInt64(0.35 * Double(NSEC_PER_SEC)))
         XCTAssertEqual(pool.activeConnections, 3)
         XCTAssertEqual(pool.openedConnections, 0)
 
-        let connB = try pool.requestConnection().wait()
+        let connB = try await pool.requestConnection().get()
         XCTAssert(connA !== connB)
         XCTAssertEqual(pool.activeConnections, 1)
     }
