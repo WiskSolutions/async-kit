@@ -54,7 +54,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
 
     /// For lifecycle logs.
     public let logger: Logger
-    
+
     /// Creates a new `EventLoopConnectionPool`.
     ///
     ///     let pool = EventLoopConnectionPool(...)
@@ -183,7 +183,6 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     /// Actual implementation of ``requestConnection(logger:)``.
     private func _requestConnection0(logger: Logger) -> EventLoopFuture<Source.Connection> {
         self.eventLoop.assertInEventLoop()
-
         guard !self.didShutdown else {
             return self.eventLoop.makeFailedFuture(ConnectionPoolError.shutdown)
         }
@@ -294,7 +293,6 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             self.available.append(.init(connection: connection, lastUsed: Date()))
         }
 
-
         // For as long as there are connections available, try to dequeue waiters. Even if the available
         // connection(s) are closed, the request logic will try to open new ones.
         while !self.available.isEmpty, !self.waiters.isEmpty {
@@ -327,7 +325,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             }
         }
     }
-    
+
     /// Closes the connection pool.
     ///
     /// All available connections will be closed immediately.
