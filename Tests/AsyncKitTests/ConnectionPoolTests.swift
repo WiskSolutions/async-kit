@@ -1,5 +1,5 @@
 import Atomics
-import AsyncKit
+@testable import AsyncKit
 import XCTest
 import NIOConcurrencyHelpers
 import Logging
@@ -93,12 +93,14 @@ final class ConnectionPoolTests: XCTestCase {
         pool.releaseConnection(anotherConnection2)
 
         try await Task.sleep(nanoseconds: UInt64(0.35 * Double(NSEC_PER_SEC)))
-        XCTAssertEqual(pool.activeConnections, 3)
-        XCTAssertEqual(pool.openedConnections, 0)
+        let (activeConnections, openedConnections) = try await pool._tests_getConnectionInfo().get()
+        XCTAssertEqual(activeConnections, 3)
+        XCTAssertEqual(openedConnections, 0)
 
         let connB = try await pool.requestConnection().get()
         XCTAssert(connA !== connB)
-        XCTAssertEqual(pool.activeConnections, 1)
+        let (activeConnectionsNew, _) = try await pool._tests_getConnectionInfo().get()
+        XCTAssertEqual(activeConnectionsNew, 1)
     }
     
     func testFIFOWaiters() throws {

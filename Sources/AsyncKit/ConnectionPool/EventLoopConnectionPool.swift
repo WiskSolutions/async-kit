@@ -51,13 +51,8 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     private var available: Deque<PrunableConnection>
     
     /// Current active connection count.
-    private let _activeConnections: ManagedAtomic<Int>
-
-    public private(set) var activeConnections: Int {
-        get { _activeConnections.load(ordering: .relaxed) }
-        set { _activeConnections.store(newValue, ordering: .relaxed) }
-    }
-
+    private var activeConnections: Int
+    
     /// Connection requests waiting to be fulfilled due to pool exhaustion.
     private var waiters: OrderedDictionary<Int, WaitlistItem>
     
@@ -97,7 +92,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         self.logger = logger
         self.eventLoop = eventLoop
         self.available = .init(minimumCapacity: maxConnections)
-        self._activeConnections = .init(0)
+        self.activeConnections = 0
         self.waiters = .init(minimumCapacity: maxConnections << 2)
         self.didShutdown = false
         self.pruneInterval = pruneInterval
@@ -361,10 +356,6 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         }
     }
     
-    public var openedConnections: Int {
-        return self.available.filter{!$0.isClosed}.count
-    }
-    
     /// Closes the connection pool.
     ///
     /// All available connections will be closed immediately.
@@ -407,7 +398,16 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             self.available.removeAll()
         }
     }
-    
+
+#if DEBUG
+    func _tests_getConnectionInfo() throws -> EventLoopFuture<(active: Int, open: Int)> {
+        self.eventLoop.submit {
+            let openConnections = self.available.filter { !$0.isClosed }.count
+            return (self.activeConnections, openConnections)
+        }
+    }
+#endif
+
     deinit {
         if !self.didShutdown {
             assertionFailure("ConnectionPoolStorage.shutdown() was not called before deinit.")
