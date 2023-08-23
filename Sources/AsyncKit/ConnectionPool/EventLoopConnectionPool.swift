@@ -51,8 +51,13 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     private var available: Deque<PrunableConnection>
     
     /// Current active connection count.
-    public private(set) var activeConnections: Int
-    
+    private let _activeConnections: ManagedAtomic<Int>
+
+    public private(set) var activeConnections: Int {
+        get { _activeConnections.load(ordering: .relaxed) }
+        set { _activeConnections.store(newValue, ordering: .relaxed) }
+    }
+
     /// Connection requests waiting to be fulfilled due to pool exhaustion.
     private var waiters: OrderedDictionary<Int, WaitlistItem>
     
@@ -92,7 +97,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         self.logger = logger
         self.eventLoop = eventLoop
         self.available = .init(minimumCapacity: maxConnections)
-        self.activeConnections = 0
+        self._activeConnections = .init(0)
         self.waiters = .init(minimumCapacity: maxConnections << 2)
         self.didShutdown = false
         self.pruneInterval = pruneInterval
