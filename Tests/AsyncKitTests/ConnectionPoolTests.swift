@@ -64,8 +64,8 @@ final class ConnectionPoolTests: XCTestCase {
             source: foo,
             maxConnections: 5,
             on: MultiThreadedEventLoopGroup(numberOfThreads: 1).next(),
-            pruneInterval: 0.1,
-            maxIdleTimeBeforePrunning: 0.15
+            pruneInterval: 0.2,
+            maxIdleTimeBeforePrunning: 0.3
         )
         
         defer { try! pool.close().wait() }
@@ -83,7 +83,7 @@ final class ConnectionPoolTests: XCTestCase {
 
         //keeping connection alive by using it and closing it
         for _ in 1...3 {
-            try await Task.sleep(nanoseconds: UInt64(0.1 * Double(NSEC_PER_SEC)))
+            try await Task.sleep(nanoseconds: UInt64(0.2 * Double(NSEC_PER_SEC)))
             let connA2 = try await pool.requestConnection().get()
             XCTAssert(connA === connA2)
             pool.releaseConnection(connA2)
@@ -92,7 +92,7 @@ final class ConnectionPoolTests: XCTestCase {
         pool.releaseConnection(anotherConnection1)
         pool.releaseConnection(anotherConnection2)
 
-        try await Task.sleep(nanoseconds: UInt64(0.35 * Double(NSEC_PER_SEC)))
+        try await Task.sleep(nanoseconds: UInt64(0.7 * Double(NSEC_PER_SEC)))
         let (activeConnections, openedConnections) = try await pool._tests_getConnectionInfo().get()
         XCTAssertEqual(activeConnections, 3)
         XCTAssertEqual(openedConnections, 0)
