@@ -188,9 +188,10 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         }
 
         // Find an available connection that isn't closed
-        while let conn = self.available.popLast() {
+        while var conn = self.available.popLast() {
             if !conn.isClosed {
                 logger.trace("Using available connection")
+                conn.lastUsed = Date()
                 return self.eventLoop.makeSucceededFuture(conn.originalConnection)
             } else {
                 logger.debug("Pruning defunct connection")
