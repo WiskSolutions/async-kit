@@ -315,6 +315,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             delay: pruneInterval
         ) { [weak self] task in
             guard let `self` = self else {
+                /// Make sure the task is cancelled whenever the class is deinitialized.
                 return task.cancel()
             }
             for conn in self.available where !conn.isClosed {
