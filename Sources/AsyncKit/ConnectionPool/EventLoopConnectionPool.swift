@@ -320,7 +320,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
             }
             for conn in self.available where !conn.isClosed {
                 if Date().timeIntervalSince(conn.lastUsed) >= maxIdleTimeBeforePruning {
-                    // the connection is too old, just releasing it
+                    // The connection is too old, just releasing it
                     self.logger.debug("Connection is too old, closing it")
                     _ = conn.close()
                 }
@@ -370,7 +370,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     }
 
 #if DEBUG
-    func _tests_getConnectionInfo() throws -> EventLoopFuture<(active: Int, open: Int)> {
+    func _tests_getConnectionInfo() -> EventLoopFuture<(active: Int, open: Int)> {
         self.eventLoop.submit {
             let openConnections = self.available.filter { !$0.isClosed }.count
             return (self.activeConnections, openConnections)
