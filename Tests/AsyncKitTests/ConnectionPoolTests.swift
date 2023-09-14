@@ -8,7 +8,8 @@ import NIOPosix
 import NIOEmbedded
 
 final class ConnectionPoolTests: XCTestCase {
-    let NSEC_PER_SEC = 1_000_000_000
+
+    let NSEC_PER_SEC: UInt64 = 1_000_000_000
 
     func testPooling() throws {
         let foo = FooDatabase()
@@ -18,21 +19,21 @@ final class ConnectionPoolTests: XCTestCase {
             on: self.group.any()
         )
         defer { try! pool.close().wait() }
-        
+
         // make two connections
         let connA = try pool.requestConnection().wait()
         XCTAssertEqual(connA.isClosed, false)
         let connB = try pool.requestConnection().wait()
         XCTAssertEqual(connB.isClosed, false)
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 2)
-        
+
         // try to make a third, but pool only supports 2
         let futureC = pool.requestConnection()
         let connC = ManagedAtomic<FooConnection?>(nil)
         futureC.whenSuccess { connC.store($0, ordering: .relaxed) }
         XCTAssertNil(connC.load(ordering: .relaxed))
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 2)
-        
+
         // release one of the connections, allowing the third to be made
         pool.releaseConnection(connB)
         let connCRet = try futureC.wait()
@@ -40,14 +41,14 @@ final class ConnectionPoolTests: XCTestCase {
         XCTAssert(connC.load(ordering: .relaxed) === connB)
         XCTAssert(connCRet === connC.load(ordering: .relaxed))
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 2)
-        
+
         // try to make a third again, with two active
         let futureD = pool.requestConnection()
         let connD = ManagedAtomic<FooConnection?>(nil)
         futureD.whenSuccess { connD.store($0, ordering: .relaxed) }
         XCTAssertNil(connD.load(ordering: .relaxed))
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 2)
-        
+
         // this time, close the connection before releasing it
         try connCRet.close().wait()
         pool.releaseConnection(connC.load(ordering: .relaxed)!)
@@ -58,20 +59,20 @@ final class ConnectionPoolTests: XCTestCase {
         XCTAssertEqual(foo.connectionsCreated.load(ordering: .relaxed), 3)
     }
 
-    func testConnectionPrunning() async throws {
+    func testConnectionPruning() async throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
             source: foo,
             maxConnections: 5,
-            on: MultiThreadedEventLoopGroup(numberOfThreads: 1).next(),
-            pruneInterval: 0.2,
-            maxIdleTimeBeforePrunning: 0.3
+            pruneInterval: .milliseconds(200),
+            maxIdleTimeBeforePruning: .milliseconds(300),
+            on: MultiThreadedEventLoopGroup(numberOfThreads: 1).next()
         )
-        
+
         defer { try! pool.close().wait() }
 
         let connA = try await pool.requestConnection().get()
-        
+
         let anotherConnection1 = try await pool.requestConnection().get()
         let anotherConnection2 = try await pool.requestConnection().get()
 
@@ -81,28 +82,28 @@ final class ConnectionPoolTests: XCTestCase {
         XCTAssert(connA === connA1)
         pool.releaseConnection(connA1)
 
-        //keeping connection alive by using it and closing it
-        for _ in 1...3 {
+        // Keeping connection alive by using it and closing it
+        for _ in 0..<3 {
             try await Task.sleep(nanoseconds: UInt64(0.2 * Double(NSEC_PER_SEC)))
             let connA2 = try await pool.requestConnection().get()
             XCTAssert(connA === connA2)
             pool.releaseConnection(connA2)
         }
-        
+
         pool.releaseConnection(anotherConnection1)
         pool.releaseConnection(anotherConnection2)
 
         try await Task.sleep(nanoseconds: UInt64(0.7 * Double(NSEC_PER_SEC)))
-        let (activeConnections, openedConnections) = try await pool._tests_getConnectionInfo().get()
+        let (activeConnections, openConnections) = try await pool._tests_getConnectionInfo().get()
         XCTAssertEqual(activeConnections, 3)
-        XCTAssertEqual(openedConnections, 0)
+        XCTAssertEqual(openConnections, 0)
 
         let connB = try await pool.requestConnection().get()
         XCTAssert(connA !== connB)
-        let (activeConnectionsNew, _) = try await pool._tests_getConnectionInfo().get()
-        XCTAssertEqual(activeConnectionsNew, 1)
+        let newActiveConnections = try await pool._tests_getConnectionInfo().get().active
+        XCTAssertEqual(newActiveConnections, 1)
     }
-    
+
     func testFIFOWaiters() throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
@@ -172,7 +173,7 @@ final class ConnectionPoolTests: XCTestCase {
         let _ = try pool.requestConnection().wait()
         let b = pool.requestConnection()
         try pool.close().wait()
-        
+
         let c = pool.requestConnection()
 
         // check that waiters are failed
@@ -191,7 +192,7 @@ final class ConnectionPoolTests: XCTestCase {
             // pass
         }
     }
-    
+
     // https://github.com/vapor/async-kit/issues/63
     func testDeadlock() {
         let foo = FooDatabase()
@@ -274,7 +275,7 @@ final class ConnectionPoolTests: XCTestCase {
 
         try futures.flatten(on: group.any()).wait()
     }
-    
+
     func testGracefulShutdownAsync() throws {
         let foo = FooDatabase()
         let pool = EventLoopGroupConnectionPool(
@@ -282,23 +283,23 @@ final class ConnectionPoolTests: XCTestCase {
             maxConnectionsPerEventLoop: 2,
             on: self.group
         )
-        
+
         let expectation1 = XCTestExpectation(description: "Shutdown completion")
         let expectation2 = XCTestExpectation(description: "Shutdown completion with error")
-        
+
         pool.shutdownGracefully {
             XCTAssertNil($0)
             expectation1.fulfill()
         }
         XCTWaiter().wait(for: [expectation1], timeout: 5.0)
-        
+
         pool.shutdownGracefully {
             XCTAssertEqual($0 as? ConnectionPoolError, ConnectionPoolError.shutdown)
             expectation2.fulfill()
         }
         XCTWaiter().wait(for: [expectation2], timeout: 5.0)
     }
-    
+
     func testGracefulShutdownSync() throws {
         let foo = FooDatabase()
         let pool = EventLoopGroupConnectionPool(
@@ -306,7 +307,7 @@ final class ConnectionPoolTests: XCTestCase {
             maxConnectionsPerEventLoop: 2,
             on: self.group
         )
-        
+
         XCTAssertNoThrow(try pool.syncShutdownGracefully())
         XCTAssertThrowsError(try pool.syncShutdownGracefully()) {
             XCTAssertEqual($0 as? ConnectionPoolError, ConnectionPoolError.shutdown)
@@ -320,9 +321,9 @@ final class ConnectionPoolTests: XCTestCase {
             maxConnectionsPerEventLoop: 2,
             on: self.group
         )
-        
+
         let connection = try pool.requestConnection().wait()
-        
+
         XCTAssertNoThrow(try pool.syncShutdownGracefully())
         XCTAssertThrowsError(try pool.syncShutdownGracefully()) {
             XCTAssertEqual($0 as? ConnectionPoolError, ConnectionPoolError.shutdown)
@@ -340,7 +341,7 @@ final class ConnectionPoolTests: XCTestCase {
             on: self.group
         )
         defer { pool.shutdown() }
-        
+
         for _ in 0..<500 {
             let eventLoop = self.group.any()
             let a = pool.requestConnection(
@@ -382,7 +383,7 @@ private struct ErrorDatabase: ConnectionPoolSource {
     enum Error: Swift.Error {
         case test
     }
-    
+
     func makeConnection(logger: Logger, on eventLoop: EventLoop) -> EventLoopFuture<FooConnection> {
         return eventLoop.makeFailedFuture(Error.test)
     }
@@ -394,7 +395,7 @@ private final class FooDatabase: ConnectionPoolSource {
     init() {
         self.connectionsCreated = .init(0)
     }
-    
+
     func makeConnection(logger: Logger, on eventLoop: EventLoop) -> EventLoopFuture<FooConnection> {
         let conn = FooConnection(on: eventLoop)
         self.connectionsCreated.wrappingIncrement(by: 1, ordering: .relaxed)
@@ -403,17 +404,14 @@ private final class FooDatabase: ConnectionPoolSource {
 }
 
 private final class FooConnection: ConnectionPoolItem, AtomicReference {
-    var lastUsed: Date
-    
     var isClosed: Bool
     let eventLoop: EventLoop
 
     init(on eventLoop: EventLoop) {
         self.eventLoop = eventLoop
         self.isClosed = false
-        self.lastUsed = Date()
     }
-    
+
     func close() -> EventLoopFuture<Void> {
         self.isClosed = true
         return self.eventLoop.makeSucceededFuture(())
