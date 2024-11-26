@@ -55,7 +55,7 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
     /// For lifecycle logs.
     public let logger: Logger
 
-    /// Creates a new `EventLoopConnectionPool`.
+    /// Creates a new ``EventLoopConnectionPool``.
     ///
     ///     let pool = EventLoopConnectionPool(...)
     ///     pool.withConnection(...) { conn in
@@ -298,7 +298,6 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
         // connection(s) are closed, the request logic will try to open new ones.
         while !self.available.isEmpty, !self.waiters.isEmpty {
             let waiter = self.waiters.removeFirst()
-
             logger.debug("Servicing connection waitlist item with id \(waiter.key)")
             waiter.value.timeoutTask.cancel()
             self._requestConnection0(logger: waiter.value.logger).cascade(to: waiter.value.promise)

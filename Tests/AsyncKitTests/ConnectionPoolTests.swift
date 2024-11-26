@@ -4,13 +4,9 @@ import XCTest
 import NIOConcurrencyHelpers
 import Logging
 import NIOCore
-import NIOPosix
 import NIOEmbedded
 
-final class ConnectionPoolTests: XCTestCase {
-
-    let NSEC_PER_SEC: UInt64 = 1_000_000_000
-
+final class ConnectionPoolTests: AsyncKitTestCase {
     func testPooling() throws {
         let foo = FooDatabase()
         let pool = EventLoopConnectionPool(
@@ -359,27 +355,9 @@ final class ConnectionPoolTests: XCTestCase {
             _ = try a.and(b).wait()
         }
     }
-
-    var group: EventLoopGroup!
-
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-        self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-    }
-
-    override func tearDownWithError() throws {
-        try self.group.syncShutdownGracefully()
-        self.group = nil
-        try super.tearDownWithError()
-    }
-
-    override class func setUp() {
-        super.setUp()
-        XCTAssertTrue(isLoggingConfigured)
-    }
 }
 
-private struct ErrorDatabase: ConnectionPoolSource {
+struct ErrorDatabase: ConnectionPoolSource {
     enum Error: Swift.Error {
         case test
     }
@@ -389,7 +367,7 @@ private struct ErrorDatabase: ConnectionPoolSource {
     }
 }
 
-private final class FooDatabase: ConnectionPoolSource {
+final class FooDatabase: ConnectionPoolSource {
     var connectionsCreated: ManagedAtomic<Int>
 
     init() {
@@ -403,7 +381,7 @@ private final class FooDatabase: ConnectionPoolSource {
     }
 }
 
-private final class FooConnection: ConnectionPoolItem, AtomicReference {
+final class FooConnection: ConnectionPoolItem, AtomicReference {
     var isClosed: Bool
     let eventLoop: EventLoop
 
