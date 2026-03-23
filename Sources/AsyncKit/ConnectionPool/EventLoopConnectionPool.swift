@@ -365,7 +365,12 @@ public final class EventLoopConnectionPool<Source> where Source: ConnectionPoolS
                 for conninfo in self.available where !conninfo.connection.isClosed {
                     if conninfo.lastUse + self.maxIdleTimeBeforePruning < .now() {
                         self.logger.debug("Pruning idle connection.")
-                        _ = conninfo.connection.close()
+                        // Capture a strong reference to the connection in the completion
+                        // closure so it stays alive until the async close finishes.
+                        // Without this, the connection can be deinitialized before
+                        // `isClosed` becomes `true`, triggering an assertion in postgres-nio.
+                        let connection = conninfo.connection
+                        connection.close().whenComplete { _ in _ = connection }
                         prunedConnections.insert(.init(conninfo.connection))
                     }
                 }
